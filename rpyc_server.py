@@ -7,6 +7,7 @@ import _thread
 import time
 import random
 from collections import Counter
+import sys
 
 processes = []
 
@@ -48,11 +49,11 @@ class Process:
                     p.values.append(random.choice(['attack', 'retreat']))
                     
     def quorum(self):
-        if self.values.count('attack') == self.values.count('retreat'):
-            result = 'undefined'
-        else:
-            count = Counter(self.values)
-            result = count.most_common(1)[0][0]
+##        if self.values.count('attack') == self.values.count('retreat'):
+##            result = 'undefined'
+##        else:
+        count = Counter(self.values)
+        result = count.most_common(1)[0][0]
         return result
 
 def tick(running, processes):
@@ -94,15 +95,22 @@ def actual_order(processes, order):
         if p.role == 'primary':
             p.data = order
             p.primary_send()
-            break
+        p.values.clear()
     for p in processes:
         p.values.append(p.data)
         p.send_data()
-        results.append(p.quorum())
         if p.state == 'F':
             faulty += 1
+    for p in processes:
+        results.append(p.quorum())
         print("G%s, %s, majority=%s, state=%s" % (p.id, p.role, p.quorum(), p.state), end='\n')
-    if results.count('attack') < results.count('retreat'):
+    
+    if len(results) < 4:
+        if faulty > 0:
+            print("Execute order: cannot be determined – not enough generals in the system! %s faulty nodes in the system" % (faulty), end='\n')
+        else:
+            print("Execute order: cannot be determined – not enough generals in the system! Non-faulty nodes in the system", end='\n')
+    elif results.count('attack') < results.count('retreat'):
         if faulty > 0:
             print("Execute order: retreat! %s faulty nodes in the system – %s out of %s quorum suggest retreat" % (faulty, len(results)//2+1, len(results)), end='\n')
         else:
@@ -112,10 +120,6 @@ def actual_order(processes, order):
             print("Execute order: attack! %s faulty nodes in the system – %s out of %s quorum suggest attack" % (faulty, len(results)//2+1, len(results)), end='\n')
         else:
             print("Execute order: attack! Non-faulty nodes in the system – %s out of %s quorum suggest attack" % (len(results)//2+1, len(results)), end='\n')
-    elif results.count('undefined') > results.count('retreat'):
-        print("Execute order: cannot be determined – not enough generals in the system! Non-faulty nodes in the system - %s out of %s quorum not consistent" % (len(results)//2+1, len(results)), end='\n')
-    elif results.count('undefined') > results.count('attack'):
-        print("Execute order: cannot be determined – not enough generals in the system! Non-faulty nodes in the system - %s out of %s quorum not consistent" % (len(results)//2+1, len(results)), end='\n')
             
 def parse_lines(lines):
     # utility method to parse input
@@ -136,11 +140,11 @@ class MonitorService(rpyc.Service):
     def on_connect(self,conn):
         print("\nconnected on {}".format(date_time))
         
-        while True:
-            n = input("The number of generals: ")
-            if n.isdigit():
-                break
-        n = int(n)
+        if len(sys.argv) == 2:
+            n = sys.argv[1]
+            n = int(n)
+        else:
+            n = 4
         processes.append(Process(1, 'primary', 'NF'))
         for i in range(2, n+1):
             processes.append(Process(i, 'secondary', 'NF'))
