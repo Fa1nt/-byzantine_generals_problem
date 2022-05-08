@@ -1,1 +1,1 @@
-# -byzantine_generals_problem
+# byzantine_generals_problem
