@@ -204,10 +204,10 @@ class MonitorService(rpyc.Service):
                 print("Error")
         
         elif len(cmd) == 2 and cmd[0] == "actual-order":
-            #try:
-            actual_order(processes, cmd[1])
-            #except:
-                #print("Error")
+            try:
+                actual_order(processes, cmd[1])
+            except:
+                print("Error")
 
         # handle unsupported command        
         else:
